@@ -72,6 +72,11 @@
 			<artifactId>spring-dotenv</artifactId>
 			<version>4.0.0</version>
 		</dependency>
+		<dependency>
+    		<groupId>org.keycloak</groupId>
+    		<artifactId>keycloak-admin-client</artifactId>
+    		<version>22.0.5</version>
+		</dependency>
 	</dependencies>
 
 	<build>
