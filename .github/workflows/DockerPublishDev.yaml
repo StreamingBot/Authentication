@@ -2,9 +2,7 @@ name: Docker Publish Latest
 on:
   push:
     branches:
-      - main 
-  pull_request:
-    types: [closed]
+      - dev 
 jobs:
   publish:
     name: Docker Publish
@@ -29,4 +27,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.CI_REGISTRY_USER }}/streamerbot-authentication:latest
+          tags: ${{ secrets.CI_REGISTRY_USER }}/streamerbot-authentication:dev
