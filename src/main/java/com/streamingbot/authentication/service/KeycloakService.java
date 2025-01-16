@@ -76,10 +76,10 @@ public class KeycloakService {
         }).subscribeOn(Schedulers.boundedElastic());
     }
 
-    public Mono<AuthResponse> login(String email, String password) {
+    public Mono<AuthResponse> login(User user) {
         return Mono.fromCallable(() -> {
             try {
-                logger.info("Attempting login for user: {}", email);
+                logger.info("Attempting login for user: {}", user.email());
                 logger.debug("Connecting to Keycloak server at: {}", serverUrl);
                 
                 Keycloak keycloak = KeycloakBuilder.builder()
@@ -88,16 +88,21 @@ public class KeycloakService {
                         .clientId(clientId)
                         .clientSecret(clientSecret)
                         .grantType("password")
-                        .username(email)
-                        .password(password)
+                        .username(user.email())
+                        .password(user.password())
                         .build();
 
+                logger.debug("Attempting to get access token");
                 String token = keycloak.tokenManager().getAccessTokenString();
-                logger.info("Successfully logged in user: {}", email);
+                logger.info("Successfully logged in user: {}", user.email());
                 return new AuthResponse("SUCCESS", token, "Login successful");
             } catch (Exception e) {
-                logger.error("Login failed: {}", e.getMessage(), e);
-                return new AuthResponse("ERROR", null, "Invalid credentials: " + e.getMessage());
+                logger.error("Login failed for user: {}. Error type: {}. Message: {}", 
+                    user.email(), e.getClass().getSimpleName(), e.getMessage());
+                if (e.getCause() != null) {
+                    logger.error("Caused by: {}", e.getCause().getMessage());
+                }
+                return new AuthResponse("ERROR", null, "Login failed: " + e.getMessage());
             }
         }).subscribeOn(Schedulers.boundedElastic());
     }

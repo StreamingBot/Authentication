@@ -21,7 +21,7 @@ public class AuthController {
     }
 
     @PostMapping(value = "/login", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<AuthResponse> login(@RequestParam String email, @RequestParam String password) {
-        return keycloakService.login(email, password);
+    public Mono<AuthResponse> login(@RequestBody User user) {
+        return keycloakService.login(user);
     }
 } 
