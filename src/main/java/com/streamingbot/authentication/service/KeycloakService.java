@@ -46,13 +46,35 @@ public class KeycloakService {
         this.rabbitMQService = rabbitMQService;
     }
     
+    protected Keycloak getAdminKeycloakInstance() {
+        return KeycloakBuilder.builder()
+                .serverUrl(serverUrl)
+                .realm("master")
+                .clientId("admin-cli")
+                .username(adminUsername)
+                .password(adminPassword)
+                .build();
+    }
+
+    protected Keycloak getUserKeycloakInstance(String username, String password) {
+        return KeycloakBuilder.builder()
+                .serverUrl(serverUrl)
+                .realm(realm)
+                .clientId(clientId)
+                .clientSecret(clientSecret)
+                .grantType("password")
+                .username(username)
+                .password(password)
+                .build();
+    }
+
     public Mono<AuthResponse> registerUser(User user) {
         return Mono.fromCallable(() -> {
             try {
                 logger.info("Attempting to register user with email: {}", user.email());
                 logger.debug("Connecting to Keycloak server at: {}", serverUrl);
                 
-                Keycloak keycloak = getKeycloakInstance();
+                Keycloak keycloak = getAdminKeycloakInstance();
                 
                 UserRepresentation userRep = new UserRepresentation();
                 userRep.setEnabled(true);
@@ -87,24 +109,8 @@ public class KeycloakService {
         return Mono.fromCallable(() -> {
             try {
                 logger.info("Attempting login for user: {}", user.email());
-                logger.debug("Connecting to Keycloak server at: {}", serverUrl);
-                logger.debug("Realm: {}", realm);
-                logger.debug("Client ID: {}", clientId);
-                logger.debug("Client Secret: {}", clientSecret);
-                logger.debug("Username: {}", user.email());
-                logger.debug("Password: {}", user.password());
                 
-                Keycloak keycloak = KeycloakBuilder.builder()
-                        .serverUrl(serverUrl)
-                        .realm(realm)
-                        .clientId(clientId)
-                        .clientSecret(clientSecret)
-                        .grantType("password")
-                        .username(user.email())
-                        .password(user.password())
-                        .build();
-
-                logger.debug("Attempting to get access token");
+                Keycloak keycloak = getUserKeycloakInstance(user.email(), user.password());
                 String token = keycloak.tokenManager().getAccessTokenString();
                 logger.info("Successfully logged in user: {}", user.email());
                 return new AuthResponse("SUCCESS", token, "Login successful");
@@ -123,9 +129,8 @@ public class KeycloakService {
         return Mono.<Void>create(sink -> {
             try {
                 logger.info("Attempting to delete user data for userId: {}", userId);
-                logger.debug("Connecting to Keycloak server for user deletion");
                 
-                Keycloak keycloak = getKeycloakInstance();
+                Keycloak keycloak = getAdminKeycloakInstance();
                 
                 try {
                     UserRepresentation user = keycloak.realm(realm).users().get(userId).toRepresentation();
@@ -150,17 +155,6 @@ public class KeycloakService {
                 sink.error(new RuntimeException("Failed to delete user data: " + e.getMessage()));
             }
         }).subscribeOn(Schedulers.boundedElastic());
-    }
-
-    private Keycloak getKeycloakInstance() {
-        logger.debug("Creating admin Keycloak instance");
-        return KeycloakBuilder.builder()
-                .serverUrl(serverUrl)
-                .realm("master")
-                .clientId("admin-cli")
-                .username(adminUsername)
-                .password(adminPassword)
-                .build();
     }
 
     @PostConstruct
