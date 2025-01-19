@@ -24,4 +24,9 @@ public class AuthController {
     public Mono<AuthResponse> login(@RequestBody User user) {
         return keycloakService.login(user);
     }
+
+    @DeleteMapping(value = "/user/{userId}")
+    public Mono<Void> deleteUserData(@PathVariable String userId, @RequestHeader("Authorization") String authToken) {
+        return keycloakService.deleteUserData(userId, authToken);
+    }
 } 

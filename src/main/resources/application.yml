@@ -8,3 +8,18 @@ management:
       application: ${spring.application.name}
     enable:
       all: true 
+
+spring:
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    virtual-host: ${RABBITMQ_VIRTUAL_HOST:guest}
+    connection-name: authentication-service-publisher
+
+rabbitmq:
+  exchange:
+    user-events: user-events-exchange
+  routing-key:
+    user-deletion: user.deletion 

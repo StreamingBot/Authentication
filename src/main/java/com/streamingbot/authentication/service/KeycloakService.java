@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import jakarta.ws.rs.NotFoundException;
 
 import java.util.Collections;
 
@@ -39,6 +40,12 @@ public class KeycloakService {
     @Value("${keycloak.admin.password}")
     private String adminPassword;
 
+    private final RabbitMQService rabbitMQService;
+    
+    public KeycloakService(RabbitMQService rabbitMQService) {
+        this.rabbitMQService = rabbitMQService;
+    }
+    
     public Mono<AuthResponse> registerUser(User user) {
         return Mono.fromCallable(() -> {
             try {
@@ -81,6 +88,11 @@ public class KeycloakService {
             try {
                 logger.info("Attempting login for user: {}", user.email());
                 logger.debug("Connecting to Keycloak server at: {}", serverUrl);
+                logger.debug("Realm: {}", realm);
+                logger.debug("Client ID: {}", clientId);
+                logger.debug("Client Secret: {}", clientSecret);
+                logger.debug("Username: {}", user.email());
+                logger.debug("Password: {}", user.password());
                 
                 Keycloak keycloak = KeycloakBuilder.builder()
                         .serverUrl(serverUrl)
@@ -103,6 +115,39 @@ public class KeycloakService {
                     logger.error("Caused by: {}", e.getCause().getMessage());
                 }
                 return new AuthResponse("ERROR", null, "Login failed: " + e.getMessage());
+            }
+        }).subscribeOn(Schedulers.boundedElastic());
+    }
+
+    public Mono<Void> deleteUserData(String userId, String authToken) {
+        return Mono.<Void>create(sink -> {
+            try {
+                logger.info("Attempting to delete user data for userId: {}", userId);
+                logger.debug("Connecting to Keycloak server for user deletion");
+                
+                Keycloak keycloak = getKeycloakInstance();
+                
+                try {
+                    UserRepresentation user = keycloak.realm(realm).users().get(userId).toRepresentation();
+                    logger.debug("Found user to delete: {}", user.getEmail());
+                    
+                    // Delete the user from Keycloak
+                    keycloak.realm(realm).users().delete(userId);
+                    logger.info("Successfully deleted user data from Keycloak for userId: {}", userId);
+                    
+                    // Publish deletion event using RabbitMQService
+                    rabbitMQService.publishUserDeletionEvent(userId, user.getEmail());
+                    
+                    sink.success();
+                    
+                } catch (NotFoundException e) {
+                    logger.error("User not found with userId: {}", userId);
+                    sink.error(new RuntimeException("User not found"));
+                }
+                
+            } catch (Exception e) {
+                logger.error("Error deleting user data", e);
+                sink.error(new RuntimeException("Failed to delete user data: " + e.getMessage()));
             }
         }).subscribeOn(Schedulers.boundedElastic());
     }
