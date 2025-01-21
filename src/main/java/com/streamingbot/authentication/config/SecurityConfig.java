@@ -14,6 +14,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())  // Disable CSRF
             .authorizeExchange(auth -> auth
                 .pathMatchers("/auth/register", "/auth/login").permitAll()
+                .pathMatchers("/actuator/**").permitAll()  // Allow actuator endpoints
+                .pathMatchers("/actuator/prometheus").permitAll()  // Explicitly allow Prometheus endpoint
                 .anyExchange().authenticated()
             )
             .build();
